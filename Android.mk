@@ -67,7 +67,7 @@ $(PRODUCT_OUT)/system.sfs : $(PRODUCT_OUT)/system.img | $(UNSPARSER) $(SQUASHER)
 # 1. Compute the disk file size need in blocks for a block size of 1M
 # 2. Prepare a vfat disk file and copy necessary files
 # 3. Copy GRUB2 files
-PROJECT_CELADON-EFI := $(PRODUCT_OUT)/$(TARGET_PRODUCT).img
+PROJECT_CELADON-EFI := $(PRODUCT_OUT)/$(TARGET_PRODUCT)_grubinstaller.img
 DISK_LAYOUT := $(LOCAL_PATH)/editdisklbl/disk_layout.conf
 
 GRUB_FILES := $(addprefix $(PRODUCT_OUT)/,initrd.img kernel ramdisk.img system.sfs vendor.sfs boot.img efi/kernelflinger.efi)
