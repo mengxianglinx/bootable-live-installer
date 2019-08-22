@@ -45,6 +45,9 @@ tos=
 tos_b=
 tos_size=
 
+super=
+super_size=
+
 system=
 system_b=
 system_size=
@@ -212,7 +215,7 @@ prepare_partition()
 	fi
 
 	# Parse the gpt.ini file and create partitions
-	gpt_file="gpt.$product.ini"
+	gpt_file="/gpt.$product.ini"
 	section=$(gpt_parse_section $gpt_file base)
 	partitions=$(gpt_get_section_field "$section" partitions)
 	# Adjust the data partition to the last one
@@ -292,6 +295,9 @@ prepare_partition()
 				tos=$dev_part
 			fi
 			tos_size=$part_len
+		elif [ $part == "super" ]; then
+			super=$dev_part
+			super_size=$part_len
 		elif [ $part == "system" ]; then
 			if [ "$part_slot" == "true" ]; then
 				system=$dev_part
@@ -351,10 +357,16 @@ prepare_partition()
 		echo "Format cache $cache"
 		yes | mkfs.ext4 -L CACHE $cache
 	fi
-	echo "Format config $config"
-	yes | mkfs.ext4 -L CONFIG $config
-	echo "Format factory $factory"
-	yes | mkfs.ext4 -L FACTORY $factory
+
+	if [ "$config" != "" ]; then
+		echo "Format config $config"
+		yes | mkfs.ext4 -L CONFIG $config
+	fi
+
+	if [ "$factory" != "" ]; then
+		echo "Format factory $factory"
+		yes | mkfs.ext4 -L FACTORY $factory
+	fi
 
 	echo "Clear the misc and metadata partitions"
 	# Clear some partition
@@ -526,20 +538,25 @@ do_actual_install()
 		fi
 	fi
 
-	# Install Android System
-	echo "Copy system partition ... to $system"
-	do_dd_copyfile /tmp/system-sq/system.unsparse $system
-	if [ "$system_b" != "" ]; then
-		echo "Copy system_b partition ... to $system_b"
-		do_dd_copyfile /tmp/system-sq/system.unsparse $system_b
-	fi
+	if [ -n $super ]; then
+		echo "Copy super partition ... to $super"
+		do_dd_copyfile /tmp/super/super.unsparse $super
+	else
+		# Install Android System
+		echo "Copy system partition ... to $system"
+		do_dd_copyfile /tmp/system-sq/system.unsparse $system
+		if [ "$system_b" != "" ]; then
+			echo "Copy system_b partition ... to $system_b"
+			do_dd_copyfile /tmp/system-sq/system.unsparse $system_b
+		fi
 
-	# Install Android Vendor
-	echo "Copy vendor partition ... to $vendor"
-	do_dd_copyfile /tmp/vendor-sq/vendor.unsparse $vendor
-	if [ "$vendor_b" != "" ]; then
-		echo "Copy vendor_b partition ... $vendor_b"
-		do_dd_copyfile /tmp/vendor-sq/vendor.unsparse $vendor_b
+		# Install Android Vendor
+		echo "Copy vendor partition ... to $vendor"
+		do_dd_copyfile /tmp/vendor-sq/vendor.unsparse $vendor
+		if [ "$vendor_b" != "" ]; then
+			echo "Copy vendor_b partition ... $vendor_b"
+			do_dd_copyfile /tmp/vendor-sq/vendor.unsparse $vendor_b
+		fi
 	fi
 
 	sync

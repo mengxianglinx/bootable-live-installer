@@ -49,20 +49,28 @@ $(INITRD): $(LOCAL_PATH)/initrd/init $(wildcard $(LOCAL_PATH)/initrd/*/*) | $(MK
 	$(ACP) -dprf $(LOCAL_INITRD_DIR) $(TARGET_INITRD_DIR)
 	echo "BUILDDATE=$(BDATE)" > $(TARGET_INITRD_DIR)/scripts/3-buildinfo
 	echo "CI_BUILD=$(CI_BUILD)" >> $(TARGET_INITRD_DIR)/scripts/3-buildinfo
-	sed "s|SERIAL_PORT|$(SERIAL_PARAMETER)|" $(LOCAL_INITRD_DIR)/scripts/2-install > $(TARGET_INITRD_DIR)/scripts/2-install
+	sed "s|SERIAL_PORT|$(SERIAL_PARAMETER)|; s|CONFIG|config|" $(LOCAL_INITRD_DIR)/scripts/2-install > $(TARGET_INITRD_DIR)/scripts/2-install
 	mkdir -p $(addprefix $(TARGET_INITRD_DIR)/,mnt proc sys tmp dev etc lib newroot sbin usr/bin usr/sbin scratchpad)
+	$(ACP) $(TARGET_DEVICE_DIR)/gpt.ini $(TARGET_INITRD_DIR)/gpt.$(TARGET_PRODUCT).ini
 	$(MKBOOTFS) $(TARGET_INITRD_DIR) | gzip -9 > $@
 
+ifeq ($(PRODUCT_USE_DYNAMIC_PARTITIONS),true)
+$(PRODUCT_OUT)/super.sfs : $(PRODUCT_OUT)/super.img | $(UNSPARSER) $(SQUASHER)
+	simg2img $(PRODUCT_OUT)/{super.img,super.unsparse}
+	mksquashfs $(PRODUCT_OUT)/{super.unsparse,super.sfs} -noappend
+	rm $(PRODUCT_OUT)/super.unsparse
+
+else
 $(PRODUCT_OUT)/vendor.sfs : $(PRODUCT_OUT)/vendor.img | $(UNSPARSER) $(SQUASHER)
 	simg2img $(PRODUCT_OUT)/{vendor.img,vendor.unsparse}
 	mksquashfs $(PRODUCT_OUT)/{vendor.unsparse,vendor.sfs} -noappend
-#	rm $(PRODUCT_OUT)/vendor.{img,unsparse}
+	rm $(PRODUCT_OUT)/vendor.unsparse
 
 $(PRODUCT_OUT)/system.sfs : $(PRODUCT_OUT)/system.img | $(UNSPARSER) $(SQUASHER)
 	simg2img $(PRODUCT_OUT)/{system.img,system.unsparse}
 	mksquashfs $(PRODUCT_OUT)/{system.unsparse,system.sfs} -noappend
-#	rm $(PRODUCT_OUT)/system.{img,unsparse}
-
+	rm $(PRODUCT_OUT)/system.unsparse
+endif
 
 # 1. Compute the disk file size need in blocks for a block size of 1M
 # 2. Prepare a vfat disk file and copy necessary files
@@ -70,7 +78,11 @@ $(PRODUCT_OUT)/system.sfs : $(PRODUCT_OUT)/system.img | $(UNSPARSER) $(SQUASHER)
 PROJECT_CELADON-EFI := $(PRODUCT_OUT)/$(TARGET_PRODUCT)_grubinstaller.img
 DISK_LAYOUT := $(LOCAL_PATH)/editdisklbl/disk_layout.conf
 
+ifeq ($(PRODUCT_USE_DYNAMIC_PARTITIONS),true)
+GRUB_FILES := $(addprefix $(PRODUCT_OUT)/,initrd.img kernel ramdisk.img super.sfs boot.img efi/kernelflinger.efi)
+else
 GRUB_FILES := $(addprefix $(PRODUCT_OUT)/,initrd.img kernel ramdisk.img system.sfs vendor.sfs boot.img efi/kernelflinger.efi)
+endif
 SRC_GRUBCFG := $(BOOT_DIR)/boot/grub/grub.cfg
 
 ifeq ($(BOARD_AVB_ENABLE),true)
