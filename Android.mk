@@ -26,6 +26,7 @@ UNSPARSER := $(HOST_OUT_EXECUTABLES)/simg2img
 SQUASHER := $(HOST_OUT_EXECUTABLES)/mksquashfs
 include $(BUILD_HOST_EXECUTABLE)
 
+ifeq ($(ENABLE_GRUB_INSTALLER),true)
 GRUB_DEFAULT := 0
 ifeq ($(CI_BUILD),true)
 GRUB_TIMEOUT := 1
@@ -111,6 +112,13 @@ $(PROJECT_CELADON-EFI): $(GRUB_FILES) | $(install_mbr)
 	cat /dev/null > $@; $(install_mbr) -l $(DISK_LAYOUT) -i $@ oand=$@.fat
 	rm -f $@.fat
 
+endif # ENABLE_GRUB_INSTALLER
+
 .PHONY: project_celadon-efi
+ifneq ($(TARGET_BUILD_VARIANT), user)
 project_celadon-efi: $(PROJECT_CELADON-EFI)
+else
+project_celadon-efi:
+	echo "Do not generate grub installer in user mode"
+endif
 
